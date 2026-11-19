@@ -1,0 +1,12 @@
+# Godot 4
+.godot/
+*.translation
+export/*.apk
+export/*.aab
+export/*.ipa
+.import/
+*.tmp
+*.log
+.mono/
+data_*/
+android/

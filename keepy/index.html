@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>روپایی پرو</title>
+<style>
+  :root {
+    --pitch: #1b5e3b;
+    --pitch-deep: #0f3d26;
+    --line: rgba(255,255,255,.22);
+    --gold: #f0c14a;
+    --ink: #0b1220;
+    --panel: rgba(8,14,24,.88);
+    --text: #f4f7fb;
+    --muted: #9aa8bc;
+    --danger: #ff5a5f;
+    --ok: #3ddc97;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #071018;
+    color: var(--text);
+    font-family: "Segoe UI", Tahoma, "Vazirmatn", sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+  #app {
+    position: relative;
+    width: min(100vw, 430px);
+    height: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #071018;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .ui {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column;
+  }
+  .top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 14px 14px 0; gap: 10px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 10px 12px;
+    min-width: 86px;
+    backdrop-filter: blur(8px);
+  }
+  .stat b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .72rem; color: var(--muted); }
+  .combo {
+    position: absolute; top: 22%; left: 50%; transform: translateX(-50%);
+    font-size: 1.6rem; font-weight: 800; color: var(--gold);
+    text-shadow: 0 6px 24px rgba(0,0,0,.55);
+    opacity: 0; transition: opacity .15s;
+    pointer-events: none;
+  }
+  .combo.show { opacity: 1; }
+  .hint {
+    position: absolute; bottom: 18px; inset-inline: 16px;
+    text-align: center; color: rgba(255,255,255,.7); font-size: .86rem;
+    pointer-events: none;
+  }
+  .overlay {
+    position: absolute; inset: 0; display: none; place-items: center;
+    background: rgba(4,8,14,.78); pointer-events: auto; padding: 20px;
+  }
+  .overlay.show { display: grid; }
+  .card {
+    width: min(100%, 360px);
+    background: linear-gradient(180deg, #121b2b, #0b1220);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 22px;
+    padding: 22px 18px 18px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.45);
+  }
+  .card h1 { font-size: 1.7rem; margin-bottom: 6px; }
+  .card p { color: var(--muted); line-height: 1.7; font-size: .92rem; margin-bottom: 14px; }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  input, button {
+    font: inherit; border-radius: 12px; border: 1px solid rgba(255,255,255,.12);
+    padding: 12px 14px; width: 100%;
+  }
+  input {
+    background: rgba(255,255,255,.04); color: var(--text); direction: rtl;
+  }
+  button {
+    background: var(--gold); color: #1a1404; font-weight: 800; cursor: pointer; border: none;
+  }
+  button.ghost {
+    background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,.16);
+  }
+  .rank-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(240,193,74,.12); color: var(--gold);
+    border-radius: 999px; padding: 6px 12px; font-size: .82rem; font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .board { list-style: none; max-height: 220px; overflow: auto; margin: 8px 0 14px; }
+  .board li {
+    display: flex; justify-content: space-between; gap: 8px;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06);
+    font-size: .9rem;
+  }
+  .board li em { color: var(--muted); font-style: normal; min-width: 1.5rem; }
+  .board li.me { color: var(--gold); }
+  .zones {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;
+  }
+  .zones div {
+    pointer-events: none;
+    text-align: center; font-size: .75rem; color: rgba(255,255,255,.55);
+    padding: 8px; border-radius: 10px; border: 1px dashed rgba(255,255,255,.15);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div class="ui">
+    <div class="top">
+      <div class="stat"><span>امتیاز</span><b id="score">۰</b></div>
+      <div class="stat" style="text-align:center"><span>بهترین</span><b id="best">۰</b></div>
+      <div class="stat" style="text-align:left"><span>رنک</span><b id="rankName" style="font-size:1rem">تازه‌کار</b></div>
+    </div>
+    <div class="combo" id="combo"></div>
+    <div class="hint" id="hint">برای شروع یک‌بار بزن · بعد وقتی توپ نزدیک است دوباره بزن</div>
+  </div>
+
+  <div class="overlay show" id="menu">
+    <div class="card">
+      <div class="rank-pill" id="menuRank">رنک فعلی: تازه‌کار</div>
+      <h1>روپایی پرو</h1>
+      <p>توپ اول معلق می‌ماند — یک‌بار بزن تا بازی شروع شود. بعد هر وقت نزدیک بود دوباره بزن (پا / کله خودکار).</p>
+      <div class="row"><input id="name" maxlength="16" placeholder="نام بازیکن" value="بازیکن" /></div>
+      <div class="row"><button id="playBtn">شروع مسابقه</button></div>
+      <div class="row"><button class="ghost" id="boardBtn">جدول رنکینگ</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="board">
+    <div class="card">
+      <h1>جدول آنلاین</h1>
+      <p id="boardStatus">رقابت فصل جاری — هر کی بیشتر روپایی بزند بالاتر است.</p>
+      <ul class="board" id="boardList"></ul>
+      <div class="row"><button id="boardClose">بازگشت</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="over">
+    <div class="card">
+      <div class="rank-pill" id="overRank">رنک</div>
+      <h1 id="overTitle">توپ افتاد</h1>
+      <p id="overText">امتیاز این دور ثبت شد.</p>
+      <div class="row"><button id="retryBtn">دوباره</button></div>
+      <div class="row"><button class="ghost" id="overBoardBtn">جدول رنکینگ</button></div>
+      <div class="row"><button class="ghost" id="homeBtn">منو</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const fa = (n) => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const apiBase = localStorage.getItem("keepy_api") || "http://127.0.0.1:8787";
+
+  const RANKS = [
+    { id: "rookie", name: "تازه‌کار", min: 0, color: "#9aa8bc" },
+    { id: "club", name: "باشگاهی", min: 25, color: "#6ec1ff" },
+    { id: "pro", name: "حرفه‌ای", min: 60, color: "#3ddc97" },
+    { id: "star", name: "ستاره", min: 120, color: "#f0c14a" },
+    { id: "legend", name: "افسانه", min: 220, color: "#ff7a3d" },
+    { id: "world", name: "جهانی", min: 400, color: "#ff4fd8" },
+  ];
+  const rankFor = (score) => {
+    let r = RANKS[0];
+    for (const x of RANKS) if (score >= x.min) r = x;
+    return r;
+  };
+
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const app = document.getElementById("app");
+  let W = 430, H = 760, dpr = 1;
+
+  function resize() {
+    const rect = app.getBoundingClientRect();
+    W = Math.max(320, Math.floor(rect.width));
+    H = Math.max(560, Math.floor(rect.height));
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  const state = {
+    mode: "menu", // menu | play | over
+    score: 0,
+    best: Number(localStorage.getItem("keepy_best") || 0),
+    combo: 0,
+    lastHit: "",
+    name: localStorage.getItem("keepy_name") || "بازیکن",
+    shake: 0,
+    flash: 0,
+    perfect: 0,
+    tips: 0,
+    hitCd: 0,
+  };
+
+  const player = {
+    x: 0.5, // normalized later
+    facing: 1,
+    kick: 0,
+    header: 0,
+    bob: 0,
+  };
+
+  const ball = {
+    x: 0, y: 0, vx: 0, vy: 0, r: 18, spin: 0, alive: false, trail: [],
+    waiting: false, // معلق تا اولین ضربه
+  };
+
+  // World coords
+  const world = () => {
+    const ground = H * 0.86;
+    const px = W * 0.5;
+    const py = ground - 8;
+    return { ground, px, py, headY: py - 118, footY: py - 28, chestY: py - 70 };
+  };
+
+  function resetBall() {
+    const w = world();
+    // توپ درست بالای پا، آمادهٔ ضربه — بدون سقوط فوری
+    ball.x = w.px;
+    ball.y = w.footY - 36;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.spin = 0;
+    ball.alive = true;
+    ball.waiting = true;
+    ball.trail = [];
+  }
+
+  function startMatch() {
+    state.mode = "play";
+    state.score = 0;
+    state.combo = 0;
+    state.lastHit = "";
+    state.perfect = 0;
+    state.tips = 0;
+    state.hitCd = 0;
+    player.kick = 0;
+    player.header = 0;
+    document.getElementById("menu").classList.remove("show");
+    document.getElementById("over").classList.remove("show");
+    document.getElementById("board").classList.remove("show");
+    document.getElementById("hint").style.opacity = "1";
+    document.getElementById("hint").textContent = "برای شروع یک‌بار بزن · بعد هر بار که توپ نزدیک است دوباره بزن";
+    updateHud();
+    resetBall();
+  }
+
+  function endMatch() {
+    if (state.mode !== "play") return;
+    state.mode = "over";
+    ball.alive = false;
+    if (state.score > state.best) {
+      state.best = state.score;
+      localStorage.setItem("keepy_best", String(state.best));
+    }
+    const r = rankFor(state.best);
+    document.getElementById("overRank").textContent = `رنک: ${r.name}`;
+    document.getElementById("overTitle").textContent = state.score >= 60 ? "چه تسلطی!" : "توپ افتاد";
+    document.getElementById("overText").textContent =
+      `امتیاز این دور: ${fa(state.score)} · کمبو حداکثر: ${fa(state.combo)} · ضربات طلایی: ${fa(state.perfect)}`;
+    document.getElementById("over").classList.add("show");
+    submitScore(state.name, state.score);
+    updateHud();
+  }
+
+  function updateHud() {
+    document.getElementById("score").textContent = fa(state.score);
+    document.getElementById("best").textContent = fa(state.best);
+    const r = rankFor(state.best);
+    document.getElementById("rankName").textContent = r.name;
+    document.getElementById("rankName").style.color = r.color;
+    document.getElementById("menuRank").textContent = `رنک فعلی: ${r.name} · رکورد ${fa(state.best)}`;
+  }
+
+  function showCombo(text) {
+    const el = document.getElementById("combo");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(showCombo._t);
+    showCombo._t = setTimeout(() => el.classList.remove("show"), 450);
+  }
+
+  // --- Online leaderboard ---
+  async function submitScore(name, score) {
+    const entry = { name: name.slice(0, 16) || "بازیکن", score, at: Date.now() };
+    const local = JSON.parse(localStorage.getItem("keepy_local_board") || "[]");
+    local.push(entry);
+    local.sort((a, b) => b.score - a.score);
+    localStorage.setItem("keepy_local_board", JSON.stringify(local.slice(0, 50)));
+    try {
+      await fetch(apiBase + "/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entry),
+      });
+    } catch (_) { /* offline fallback */ }
+  }
+
+  async function loadBoard() {
+    const list = document.getElementById("boardList");
+    const status = document.getElementById("boardStatus");
+    list.innerHTML = "";
+    let rows = [];
+    try {
+      const res = await fetch(apiBase + "/leaderboard", { cache: "no-store" });
+      if (res.ok) {
+        rows = await res.json();
+        status.textContent = "متصل به سرور آنلاین · رنک جهانی زنده";
+      } else throw new Error("bad");
+    } catch {
+      rows = JSON.parse(localStorage.getItem("keepy_local_board") || "[]");
+      // seed a competitive feel if empty
+      if (rows.length < 5) {
+        rows = [
+          { name: "کاوه", score: 186 },
+          { name: "نیکا", score: 142 },
+          { name: "آرین", score: 97 },
+          { name: "سارا", score: 64 },
+          { name: "رضا", score: 41 },
+          ...rows,
+        ].sort((a, b) => b.score - a.score);
+      }
+      status.textContent = "حالت محلی (سرور آنلاین در دسترس نیست) · برای رنک جهانی server را اجرا کنید";
+    }
+    rows.slice(0, 12).forEach((row, i) => {
+      const li = document.createElement("li");
+      if (row.name === state.name) li.classList.add("me");
+      li.innerHTML = `<span><em>${fa(i + 1)}</em> ${row.name}</span><strong>${fa(row.score)}</strong>`;
+      list.appendChild(li);
+    });
+  }
+
+  // ضربه: هرجای صفحه بزنی، نوع ضربه از ارتفاع توپ انتخاب می‌شود
+  function tryHit() {
+    if (state.mode !== "play" || !ball.alive) return;
+    if (state.hitCd > 0) return;
+
+    const w = world();
+    const dx = ball.x - w.px;
+    const absDx = Math.abs(dx);
+
+    // اگر هنوز معلق است: همیشه اولین ضربه با پا قبول است
+    if (ball.waiting) {
+      applyHit("f", true);
+      return;
+    }
+
+    // محدودهٔ سخاوتمندانه اطراف بدن بازیکن
+    const midY = (w.headY + w.footY) * 0.5;
+    const dyBody = ball.y - midY;
+    const inVertical = ball.y < w.ground - 10 && ball.y > w.headY - 100;
+    const inHorizontal = absDx < 110;
+
+    if (!inVertical || !inHorizontal) {
+      // خارج از دسترس — فقط انیمیشن خالی
+      player.kick = 0.15;
+      return;
+    }
+
+    // انتخاب خودکار پا / سینه / کله بر اساس ارتفاع توپ
+    let kind = "f";
+    if (ball.y <= w.headY + 28) kind = "h";
+    else if (ball.y <= w.chestY + 10) kind = "c";
+    else kind = "f";
+
+    const targetY = kind === "h" ? w.headY : kind === "c" ? w.chestY : w.footY;
+    const heightErr = Math.abs(ball.y - targetY);
+    const perfect = heightErr < 22 && absDx < 36;
+    applyHit(kind, perfect);
+  }
+
+  function applyHit(kind, perfect) {
+    const w = world();
+    const dx = ball.x - w.px;
+
+    ball.waiting = false;
+    state.hitCd = 0.14;
+
+    // haptic on native (Capacitor)
+    try {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics) {
+        window.Capacitor.Plugins.Haptics.impact({ style: perfect ? "MEDIUM" : "LIGHT" });
+      } else if (navigator.vibrate) {
+        navigator.vibrate(perfect ? 18 : 10);
+      }
+    } catch (_) {}
+
+    // قدرت پایدار و قابل پیش‌بینی
+    let lift = 420;
+    if (kind === "h") lift = perfect ? 460 : 400;
+    else if (kind === "c") lift = perfect ? 440 : 380;
+    else lift = perfect ? 500 : 440;
+
+    // توپ را کمی به مرکز برگردان تا از کنترل خارج نشود
+    ball.vx = clamp(-dx * 2.4 + (Math.random() - 0.5) * 30, -140, 140);
+    ball.vy = -lift;
+    ball.spin += kind === "h" ? 6 : 12;
+
+    if (kind === "h") {
+      ball.y = Math.min(ball.y, w.headY - 8);
+      player.header = 0.3;
+    } else if (kind === "c") {
+      ball.y = Math.min(ball.y, w.chestY - 6);
+      player.kick = 0.2;
+      player.header = 0.15;
+    } else {
+      ball.y = Math.min(ball.y, w.footY - 12);
+      player.kick = 0.35;
+    }
+    player.facing = ball.vx >= 0 ? 1 : -1;
+
+    state.shake = perfect ? 6 : 3;
+    state.flash = perfect ? 0.2 : 0.1;
+
+    let points = kind === "h" ? 2 : 1;
+    if (perfect) { points += 2; state.perfect++; }
+
+    const tag = kind === "h" ? "h" : "f";
+    if (state.lastHit && state.lastHit !== tag) {
+      state.combo++;
+      points += Math.min(5, Math.floor(state.combo / 2));
+      showCombo(perfect ? `طلایی ×${fa(state.combo)}` : `کمبو ×${fa(state.combo)}`);
+    } else {
+      state.combo = Math.max(1, state.combo);
+      if (perfect) showCombo("ضربه طلایی");
+      else if (state.tips === 0) showCombo("شروع!");
+    }
+    state.lastHit = tag;
+    state.score += points;
+    state.tips++;
+    updateHud();
+    if (state.tips >= 1) {
+      document.getElementById("hint").textContent = "نیمهٔ بالا ≈ کله · نیمهٔ پایین ≈ پا — وقتی توپ نزدیک است بزن";
+      document.getElementById("hint").style.opacity = "0.45";
+    }
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    tryHit();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (state.mode !== "play") return;
+    if (e.code === "Space" || e.key === "ArrowUp" || e.key === "ArrowDown" ||
+        e.key === "w" || e.key === "W" || e.key === "s" || e.key === "S" ||
+        e.key === "f" || e.key === "F" || e.key === "j" || e.key === "J") {
+      e.preventDefault();
+      tryHit();
+    }
+  });
+
+  // UI buttons
+  document.getElementById("name").value = state.name;
+  document.getElementById("playBtn").onclick = () => {
+    state.name = document.getElementById("name").value.trim() || "بازیکن";
+    localStorage.setItem("keepy_name", state.name);
+    startMatch();
+  };
+  document.getElementById("retryBtn").onclick = startMatch;
+  document.getElementById("homeBtn").onclick = () => {
+    document.getElementById("over").classList.remove("show");
+    document.getElementById("menu").classList.add("show");
+    state.mode = "menu";
+    updateHud();
+  };
+  document.getElementById("boardBtn").onclick = async () => {
+    document.getElementById("board").classList.add("show");
+    await loadBoard();
+  };
+  document.getElementById("overBoardBtn").onclick = async () => {
+    document.getElementById("board").classList.add("show");
+    await loadBoard();
+  };
+  document.getElementById("boardClose").onclick = () => {
+    document.getElementById("board").classList.remove("show");
+  };
+
+  // --- Draw helpers (no external bitmaps) ---
+  function drawPitch() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#143d2a");
+    g.addColorStop(0.55, "#1b5e3b");
+    g.addColorStop(1, "#0c2a1a");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // stadium dark vignette top
+    const vg = ctx.createLinearGradient(0, 0, 0, H * 0.45);
+    vg.addColorStop(0, "rgba(5,10,18,.75)");
+    vg.addColorStop(1, "rgba(5,10,18,0)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H * 0.45);
+
+    // crowd lights
+    for (let i = 0; i < 18; i++) {
+      ctx.fillStyle = `rgba(255,220,140,${0.03 + (i % 3) * 0.02})`;
+      ctx.beginPath();
+      ctx.arc((i * 53) % W, 40 + (i % 5) * 10, 2 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const ground = world().ground;
+    ctx.fillStyle = "#0f3d26";
+    ctx.fillRect(0, ground, W, H - ground);
+    // grass stripes
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = i % 2 ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.05)";
+      ctx.fillRect(0, ground + i * 14, W, 14);
+    }
+    // center arc hint
+    ctx.strokeStyle = "rgba(255,255,255,.15)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(W / 2, ground, 70, Math.PI, 0);
+    ctx.stroke();
+  }
+
+  function drawPlayer(t) {
+    const w = world();
+    const x = w.px;
+    const y = w.py;
+    player.bob += 0.08;
+    const bob = Math.sin(player.bob) * 1.5;
+    const kick = player.kick;
+    const header = player.header;
+
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.scale(player.facing, 1);
+
+    // shadow
+    ctx.fillStyle = "rgba(0,0,0,.28)";
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 28, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // legs
+    ctx.strokeStyle = "#f0d5b8";
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-6, -42);
+    ctx.lineTo(-10, -8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(6, -42);
+    const footSwing = kick > 0 ? -25 * Math.sin(kick * Math.PI) : 0;
+    ctx.quadraticCurveTo(18 + footSwing, -24, 12 + footSwing * 0.4, -4);
+    ctx.stroke();
+
+    // boots
+    ctx.fillStyle = "#111";
+    ctx.beginPath();
+    ctx.ellipse(-12, -2, 10, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(14 + footSwing * 0.3, 0, 11, 5, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = varGoldSoft();
+    ctx.fillRect(8 + footSwing * 0.3, -3, 8, 3);
+
+    // shorts
+    ctx.fillStyle = "#0e2a6b";
+    roundRect(-16, -58, 32, 20, 6);
+    ctx.fill();
+
+    // torso / jersey
+    const jersey = ctx.createLinearGradient(0, -110, 0, -50);
+    jersey.addColorStop(0, "#1f4fd6");
+    jersey.addColorStop(1, "#1639a0");
+    ctx.fillStyle = jersey;
+    roundRect(-18, -108, 36, 54, 10);
+    ctx.fill();
+    // number
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.font = "bold 16px Tahoma";
+    ctx.textAlign = "center";
+    ctx.fillText("۱۰", 0, -72);
+
+    // arms
+    ctx.strokeStyle = "#f0d5b8";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-16, -95);
+    ctx.lineTo(-28, header > 0 ? -120 : -70);
+    ctx.moveTo(16, -95);
+    ctx.lineTo(26, header > 0 ? -118 : -72);
+    ctx.stroke();
+
+    // head
+    const headY = -122 - (header > 0 ? 6 * Math.sin(header * Math.PI) : 0);
+    ctx.fillStyle = "#f0d5b8";
+    ctx.beginPath();
+    ctx.arc(0, headY, 16, 0, Math.PI * 2);
+    ctx.fill();
+    // hair
+    ctx.fillStyle = "#1a120c";
+    ctx.beginPath();
+    ctx.ellipse(0, headY - 6, 15, 10, 0, Math.PI, 0);
+    ctx.fill();
+    // eyes
+    ctx.fillStyle = "#222";
+    ctx.beginPath();
+    ctx.arc(5, headY - 1, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // subtle training rings for the first hits
+    if (state.mode === "play" && state.tips < 5) {
+      ctx.strokeStyle = "rgba(240,193,74,.28)";
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(w.px, w.footY, 34, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(110,193,255,.28)";
+      ctx.beginPath();
+      ctx.arc(w.px, w.headY, 30, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function varGoldSoft() { return "#f0c14a"; }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawBall() {
+    if (!ball.alive && state.mode !== "play") return;
+    // trail
+    for (let i = 0; i < ball.trail.length; i++) {
+      const p = ball.trail[i];
+      ctx.globalAlpha = (i / ball.trail.length) * 0.35;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, ball.r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // shadow
+    const ground = world().ground;
+    const shadowScale = clamp(1 - (ground - ball.y) / 320, 0.25, 1);
+    ctx.fillStyle = `rgba(0,0,0,${0.25 * shadowScale})`;
+    ctx.beginPath();
+    ctx.ellipse(ball.x, ground + 4, ball.r * 1.1 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(ball.spin * 0.05);
+    const grd = ctx.createRadialGradient(-5, -6, 3, 0, 0, ball.r);
+    grd.addColorStop(0, "#ffffff");
+    grd.addColorStop(0.55, "#f2f2f2");
+    grd.addColorStop(1, "#c8c8c8");
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+    // classic pentagon hint
+    ctx.strokeStyle = "rgba(20,20,20,.8)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+      const x = Math.cos(a) * 7;
+      const y = Math.sin(a) * 7;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(20,20,20,.85)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function physics(dt) {
+    if (state.mode !== "play" || !ball.alive) return;
+
+    // قبل از اولین ضربه: معلق و کمی بالا-پایین شناور
+    if (ball.waiting) {
+      const w = world();
+      ball.x = w.px;
+      ball.y = w.footY - 36 + Math.sin(performance.now() / 280) * 6;
+      ball.vx = 0;
+      ball.vy = 0;
+      return;
+    }
+
+    const g = 980; // نرم‌تر از قبل
+    ball.vy += g * dt;
+    ball.vx *= (1 - 0.55 * dt);
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+    ball.spin += ball.vx * dt * 0.02;
+
+    ball.trail.push({ x: ball.x, y: ball.y });
+    if (ball.trail.length > 8) ball.trail.shift();
+
+    if (ball.x < ball.r + 8) { ball.x = ball.r + 8; ball.vx = Math.abs(ball.vx) * 0.65; }
+    if (ball.x > W - ball.r - 8) { ball.x = W - ball.r - 8; ball.vx = -Math.abs(ball.vx) * 0.65; }
+
+    const ground = world().ground - ball.r;
+    if (ball.y >= ground) {
+      // فقط وقتی واقعاً به زمین می‌خورد تمام می‌شود
+      ball.y = ground;
+      ball.vy = 0;
+      ball.vx *= 0.5;
+      endMatch();
+      return;
+    }
+
+    if (ball.y < -80) {
+      ball.y = -80;
+      ball.vy = Math.abs(ball.vy) * 0.35;
+    }
+  }
+
+  function updateAnims(dt) {
+    player.kick = Math.max(0, player.kick - dt * 2.8);
+    player.header = Math.max(0, player.header - dt * 3.2);
+    state.shake = Math.max(0, state.shake - dt * 18);
+    state.flash = Math.max(0, state.flash - dt);
+    state.hitCd = Math.max(0, state.hitCd - dt);
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    physics(dt);
+    updateAnims(dt);
+
+    ctx.save();
+    if (state.shake > 0) {
+      ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+    }
+    drawPitch();
+    drawPlayer(now);
+    drawBall();
+    if (state.flash > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${state.flash * 0.35})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+    requestAnimationFrame(frame);
+  }
+
+  updateHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
