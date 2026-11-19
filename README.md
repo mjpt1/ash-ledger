@@ -1,3 +1,32 @@
+<!-- gen:header -->
+<p align="center"><img src=".github/cover.svg" alt="Ash Ledger · دفتر خاکستر" width="100%"></p>
+
+<h1 align="center">Ash Ledger · دفتر خاکستر</h1>
+<p align="center"><b>بازی بقا با داستان‌های کوتاه هوش مصنوعی برای اندروید</b><br><i>Hybrid-casual Android survivor game with AI short stories (Godot 4)</i></p>
+<p align="center"><img alt="Godot 4" src="https://img.shields.io/badge/-Godot%204-f59e0b?style=for-the-badge"> <img alt="GDScript" src="https://img.shields.io/badge/-GDScript-f59e0b?style=for-the-badge"> <img alt="Android" src="https://img.shields.io/badge/-Android-f59e0b?style=for-the-badge"></p>
+
+<div dir="rtl">
+
+## ✨ امکانات
+
+- حلقه‌ی بقا با موج دشمن و باس
+- ۵ فصل داستانی
+- رابط فارسی و جوی‌استیک لمسی
+- بازی دوم: روپایی پرو برای وب و موبایل
+
+</div>
+
+## 🚀 Quick start
+
+```bash
+Open project.godot in Godot 4.7+ → Run
+```
+
+---
+
+<!-- gen:docs -->
+## 📚 مستندات کامل · Full documentation
+
 # دفتر خاکستر (Ash Ledger)
 
 بازی hybridcasual اندروید: **بقا (Survivor)** + **داستان کوتاه AI** + متای سبک.
@@ -43,3 +72,8 @@ godot --headless --path . --export-debug "Android" export/AshLedger-debug.apk
 ## دموی وب سریع
 
 [`export/demo/ash-ledger-demo.html`](export/demo/ash-ledger-demo.html)
+
+---
+
+<p align="center">ساخته‌شده توسط <a href="https://mahsen81.ir"><b>محسن جباره‌اصل</b></a> — برنامه‌نویسی، طراحی سایت، ربات و هوش مصنوعی<br>
+Built by <a href="https://mahsen81.ir">Mohsen Jabbareh-Asl</a> · ⭐ اگر مفید بود، ستاره بدهید · Need a custom version? <a href="https://mahsen81.ir">Get in touch</a></p>
